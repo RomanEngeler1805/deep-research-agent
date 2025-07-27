@@ -1,5 +1,6 @@
 from openai import OpenAI
 import os
+import subprocess
 from dotenv import load_dotenv
 from prompts import system_prompt
 from tool_discovery import discover_tools, execute_tool
@@ -7,9 +8,6 @@ from atla_insights import (
     configure,
     instrument_openai,
     instrument,
-    mark_success,
-    mark_failure,
-    tool,
 )
 import json
 import sys
@@ -17,8 +15,27 @@ import sys
 # Load environment variables
 load_dotenv()
 
+
+def get_git_commit():
+    """Get the current git commit hash."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+        )
+        return result.stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return "unknown"
+
+
 # Configure Atla Insights - REQUIRED FIRST
-configure(token=os.getenv("ATLA_INSIGHTS_TOKEN"))
+metadata = {
+    "git_commit": get_git_commit(),
+    "model": "gpt-4o",
+    "environment": "development",
+    "agent_version": "1.0.0",
+}
+
+configure(token=os.getenv("ATLA_INSIGHTS_TOKEN"), metadata=metadata)
 
 # Instrument OpenAI
 instrument_openai()
@@ -95,10 +112,11 @@ def process_query_internally(
         ]
 
         turn_count = 0
+        final_answer = None
 
         while turn_count < max_turns:
             # Generate response with function calling
-            response = generate_completion_with_tools(messages, tools, model="gpt-4")
+            response = generate_completion_with_tools(messages, tools, model="gpt-4o")
 
             # Show the assistant's thinking if there's content
             if response.content and show_thinking:
@@ -145,16 +163,19 @@ def process_query_internally(
                 continue
             else:
                 # No tool calls, this is the final response
-                mark_success()
-                return response.content
+                final_answer = response.content
+                break
 
-        # If we hit max turns, get a final response
-        final_response = generate_completion_with_tools(messages, tools, model="gpt-4")
-        mark_success()
-        return final_response.content
+        # If we hit max turns without a final answer, get one more response
+        if final_answer is None:
+            final_response = generate_completion_with_tools(
+                messages, tools, model="gpt-4o"
+            )
+            final_answer = final_response.content
+
+        return final_answer
 
     except Exception as e:
-        mark_failure()
         raise
 
 

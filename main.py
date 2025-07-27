@@ -27,9 +27,24 @@ def get_git_commit():
         return "unknown"
 
 
+def get_git_commit_message():
+    """Get the current git commit message."""
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--pretty=%B"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return "unknown"
+
+
 # Configure Atla Insights - REQUIRED FIRST
 metadata = {
     "git_commit": get_git_commit(),
+    "git_commit_message": get_git_commit_message(),
     "model": "gpt-4o",
     "environment": "development",
     "agent_version": "1.0.0",

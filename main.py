@@ -177,9 +177,15 @@ def process_query_internally(
 
                 continue
             else:
-                # No tool calls, this is the final response
-                final_answer = response.content
-                break
+                # No tool calls, check if this is the final answer
+                if response.content and "FINAL_ANSWER:" in response.content:
+                    # Extract the final answer part
+                    final_answer = response.content.split("FINAL_ANSWER:", 1)[1].strip()
+                    break
+                else:
+                    # Continue the conversation - agent is reasoning but not done yet
+                    messages.append({"role": "assistant", "content": response.content})
+                    continue
 
         # If we hit max turns without a final answer, get one more response
         if final_answer is None:

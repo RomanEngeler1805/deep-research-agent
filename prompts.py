@@ -14,7 +14,5 @@ Be thorough in your research and provide well-sourced, comprehensive answers. Do
 
 For challenging reasoning tasks, MANDATORY: after reaching your initial conclusion, explicitly critique your reasoning by stating "Let me double-check this reasoning:" then identify potential flaws, consider alternative solutions, and verify each logical step before providing the final answer.
 
-When you are ready to provide your final answer, start your response with "FINAL_ANSWER:" followed by your complete response.
-
 Always provide the final answer to the user's question based on your research and analysis.
 """

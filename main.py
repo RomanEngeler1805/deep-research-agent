@@ -44,6 +44,7 @@ def get_git_commit_message():
 # Configure Atla Insights - REQUIRED FIRST
 metadata = {
     "git_commit": get_git_commit(),
+    "experiment": get_git_commit_message(),
     "git_commit_message": get_git_commit_message(),
     "model": "gpt-4o",
     "environment": "development",
@@ -185,6 +186,12 @@ def process_query_internally(
                 else:
                     # Continue the conversation - agent is reasoning but not done yet
                     messages.append({"role": "assistant", "content": response.content})
+                    messages.append(
+                        {
+                            "role": "assistant",
+                            "content": "let me double check this reasoning",
+                        }
+                    )
                     continue
 
         # If we hit max turns without a final answer, get one more response

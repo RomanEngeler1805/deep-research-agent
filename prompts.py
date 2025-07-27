@@ -12,5 +12,7 @@ IMPORTANT: If one approach doesn't work (e.g., a webpage is inaccessible, contai
 
 Be thorough in your research and provide well-sourced, comprehensive answers. Don't give up easily - if one source doesn't work, find another. If a tool fails or the result is unclear, try alternative approaches or sources.
 
+For challenging reasoning tasks, after reaching your initial conclusion, take a moment to critique your reasoning chain: identify potential weaknesses, consider alternative explanations, and verify your logic before providing the final answer.
+
 Always provide the final answer to the user's question based on your research and analysis.
 """

@@ -5,11 +5,13 @@ import json
 from dotenv import load_dotenv
 from urllib.parse import urlparse
 import time
+from atla_insights import tool
 
 # Load environment variables from .env file
 load_dotenv()
 
 
+@tool
 def google_search(query: str) -> str:
     """
     Search Google and return formatted results. Use this to find information about any topic.
@@ -84,49 +86,7 @@ def google_search(query: str) -> str:
         return f"Error: Unexpected error: {str(e)}"
 
 
-def calculate(expression: str) -> str:
-    """
-    Perform mathematical calculations safely.
-
-    Args:
-        expression: Mathematical expression to evaluate (e.g., "2 + 2", "sqrt(16)", "10 * 5")
-
-    Returns:
-        Result of the calculation
-    """
-    try:
-        # Safe evaluation of mathematical expressions
-        import ast
-        import operator
-
-        # Define allowed operations
-        allowed_operators = {
-            ast.Add: operator.add,
-            ast.Sub: operator.sub,
-            ast.Mult: operator.mul,
-            ast.Div: operator.truediv,
-            ast.Pow: operator.pow,
-        }
-
-        def eval_expr(expr):
-            return _eval(ast.parse(expr, mode="eval").body)
-
-        def _eval(node):
-            if isinstance(node, ast.Num):
-                return node.n
-            elif isinstance(node, ast.BinOp):
-                return allowed_operators[type(node.op)](
-                    _eval(node.left), _eval(node.right)
-                )
-            else:
-                raise TypeError(node)
-
-        result = eval_expr(expression)
-        return f"Result: {result}"
-    except Exception as e:
-        return f"Error calculating '{expression}': {str(e)}"
-
-
+@tool
 def open_webpage(url: str) -> str:
     """
     Open a webpage and extract its content. Use this to read articles, news, or any web content.
@@ -194,6 +154,45 @@ def open_webpage(url: str) -> str:
         return f"Error: Failed to fetch webpage: {str(e)}"
     except Exception as e:
         return f"Error: Unexpected error while opening webpage: {str(e)}"
+
+
+@tool
+def search_and_read(query: str, num_articles: int = 2) -> str:
+    """
+    Search for information and read the top articles to provide comprehensive information.
+
+    This tool combines search and webpage reading to give you detailed information from
+    multiple sources. It searches for your query, then reads the top articles to provide
+    comprehensive, well-sourced information.
+
+    Args:
+        query: The search query (e.g., "latest AI developments", "climate change news")
+        num_articles: Number of articles to read (default: 2, max: 5)
+
+    Returns:
+        Comprehensive information from multiple web sources
+    """
+    # Use google_search to find articles
+    search_results_str = google_search(query)
+    urls = extract_urls_from_search_results(search_results_str)
+
+    if not urls:
+        return f"No articles found for query: '{query}'"
+
+    # Read the top articles
+    articles_content = []
+    for i, url in enumerate(urls[:num_articles], 1):
+        print(f"\nReading article {i} of {num_articles}...")
+        article_content = open_webpage(url)
+        articles_content.append(article_content)
+        print(f"Finished reading article {i}.")
+
+    # Combine all article content
+    combined_content = "\n\n".join(articles_content)
+
+    return (
+        f"Comprehensive information from {num_articles} articles:\n\n{combined_content}"
+    )
 
 
 def extract_urls_from_search_results(search_results: str) -> List[str]:

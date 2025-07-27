@@ -3,11 +3,25 @@ import os
 from dotenv import load_dotenv
 from prompts import system_prompt
 from tool_discovery import discover_tools, execute_tool
+from atla_insights import (
+    configure,
+    instrument_openai,
+    instrument,
+    mark_success,
+    mark_failure,
+    tool,
+)
 import json
 import sys
 
 # Load environment variables
 load_dotenv()
+
+# Configure Atla Insights - REQUIRED FIRST
+configure(token=os.getenv("ATLA_INSIGHTS_TOKEN"))
+
+# Instrument OpenAI
+instrument_openai()
 
 # Create an instance of the OpenAI class
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -55,6 +69,7 @@ def print_observation(text: str, max_length: int = 800):
             print(f"   {line}")
 
 
+@instrument("Process query internally")
 def process_query_internally(
     query: str, max_turns: int = 10, show_thinking: bool = True
 ) -> str:
@@ -69,73 +84,81 @@ def process_query_internally(
     Returns:
         Final answer to the query
     """
-    # Discover available tools
-    tools = discover_tools()
+    try:
+        # Discover available tools
+        tools = discover_tools()
 
-    # Start fresh conversation for each query
-    messages = [
-        {"role": "system", "content": system_prompt()},
-        {"role": "user", "content": query},
-    ]
+        # Start fresh conversation for each query
+        messages = [
+            {"role": "system", "content": system_prompt()},
+            {"role": "user", "content": query},
+        ]
 
-    turn_count = 0
+        turn_count = 0
 
-    while turn_count < max_turns:
-        # Generate response with function calling
-        response = generate_completion_with_tools(messages, tools, model="gpt-4")
+        while turn_count < max_turns:
+            # Generate response with function calling
+            response = generate_completion_with_tools(messages, tools, model="gpt-4")
 
-        # Show the assistant's thinking if there's content
-        if response.content and show_thinking:
-            print_thought(response.content)
+            # Show the assistant's thinking if there's content
+            if response.content and show_thinking:
+                print_thought(response.content)
 
-        # Check if the model wants to call a function
-        if response.tool_calls:
-            # Execute each tool call
-            for tool_call in response.tool_calls:
-                function_name = tool_call.function.name
-                function_args = json.loads(tool_call.function.arguments)
+            # Check if the model wants to call a function
+            if response.tool_calls:
+                # Execute each tool call
+                for tool_call in response.tool_calls:
+                    function_name = tool_call.function.name
+                    function_args = json.loads(tool_call.function.arguments)
 
-                turn_count += 1
-                print_step_header(turn_count, f"Using {function_name}")
+                    turn_count += 1
+                    print_step_header(turn_count, f"Using {function_name}")
 
-                if show_thinking:
-                    print_action(function_name, str(function_args))
+                    if show_thinking:
+                        print_action(function_name, str(function_args))
 
-                # Execute the tool
-                try:
-                    result = execute_tool(function_name, **function_args)
-                except Exception as e:
-                    result = f"Error executing {function_name}: {str(e)}"
+                    # Execute the tool
+                    try:
+                        result = execute_tool(function_name, **function_args)
+                    except Exception as e:
+                        result = f"Error executing {function_name}: {str(e)}"
 
-                if show_thinking:
-                    print_observation(result)
+                    if show_thinking:
+                        print_observation(result)
 
-                # Add the tool call and result to messages
-                messages.append(
-                    {
-                        "role": "assistant",
-                        "content": response.content,
-                        "tool_calls": [tool_call],
-                    }
-                )
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "content": str(result),
-                    }
-                )
+                    # Add the tool call and result to messages
+                    messages.append(
+                        {
+                            "role": "assistant",
+                            "content": response.content,
+                            "tool_calls": [tool_call],
+                        }
+                    )
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": str(result),
+                        }
+                    )
 
-            continue
-        else:
-            # No tool calls, this is the final response
-            return response.content
+                continue
+            else:
+                # No tool calls, this is the final response
+                mark_success()
+                return response.content
 
-    # If we hit max turns, get a final response
-    final_response = generate_completion_with_tools(messages, tools, model="gpt-4")
-    return final_response.content
+        # If we hit max turns, get a final response
+        final_response = generate_completion_with_tools(messages, tools, model="gpt-4")
+        mark_success()
+        return final_response.content
+
+    except Exception as e:
+        mark_failure()
+        raise
 
 
+@instrument("Run interactive agent mode")
 def run_interactive_mode():
     """Run the agent in interactive mode."""
     print("=" * 80)
@@ -144,43 +167,33 @@ def run_interactive_mode():
     print("Ask me anything! I'll research and provide a comprehensive answer.")
     print("Type 'quit' or 'exit' to end the session.\n")
 
-    while True:
-        try:
-            # Get user input
-            user_input = input("\n❓ You: ").strip()
+    try:
+        # Get user input
+        user_input = input("\n❓ You: ").strip()
 
-            # Check for exit commands
-            if user_input.lower() in ["quit", "exit", "q"]:
-                print("\n👋 Goodbye!")
-                break
+        print(f"\n🔄 RESEARCHING: {user_input}")
+        print("=" * 80)
 
-            if not user_input:
-                print("Please enter a question or command.")
-                continue
+        # Process the query internally - each query starts fresh
+        final_answer = process_query_internally(user_input, show_thinking=True)
 
-            print(f"\n🔄 RESEARCHING: {user_input}")
-            print("=" * 80)
+        print("\n" + "=" * 80)
+        print("💬 FINAL ANSWER")
+        print("=" * 80)
+        print(final_answer)
+        print("=" * 80)
 
-            # Process the query internally - each query starts fresh
-            final_answer = process_query_internally(user_input, show_thinking=True)
+        # Clear any potential leftover processing
+        print()  # Add a blank line for separation
 
-            print("\n" + "=" * 80)
-            print("💬 FINAL ANSWER")
-            print("=" * 80)
-            print(final_answer)
-            print("=" * 80)
-
-            # Clear any potential leftover processing
-            print()  # Add a blank line for separation
-
-        except KeyboardInterrupt:
-            print("\n\n👋 Session interrupted. Goodbye!")
-            break
-        except Exception as e:
-            print(f"\n❌ Error: {str(e)}")
-            print("Please try again.")
+    except KeyboardInterrupt:
+        print("\n\n👋 Session interrupted. Goodbye!")
+    except Exception as e:
+        print(f"\n❌ Error: {str(e)}")
+        print("Please try again.")
 
 
+@instrument("Run single query")
 def run_single_query(query: str):
     """Run a single query without interactive mode."""
     print(f"\n🔄 RESEARCHING: {query}")

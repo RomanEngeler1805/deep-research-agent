@@ -10,7 +10,7 @@ from agents.base_agent import (
     AgentCapability,
     TaskType,
 )
-from tool_discovery import discover_tools, execute_tool
+from tools import discover_tools, execute_tool
 from utils import generate_completion_with_tools
 from atla_insights import instrument
 

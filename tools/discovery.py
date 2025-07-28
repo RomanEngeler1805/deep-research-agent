@@ -1,7 +1,7 @@
 import inspect
 import importlib
 from typing import Dict, Any, Callable, List
-import actions
+from tools import actions
 import json
 
 
@@ -69,12 +69,12 @@ def get_function_schema(func: Callable) -> Dict[str, Any]:
     }
 
 
-def discover_tools(module_name: str = "actions") -> List[Dict[str, Any]]:
+def discover_tools(module_name: str = "tools.actions") -> List[Dict[str, Any]]:
     """
     Discover all functions in the specified module and return their schemas.
 
     Args:
-        module_name: Name of the module to scan (default: "actions")
+        module_name: Name of the module to scan (default: "tools.actions")
 
     Returns:
         List of function schemas for OpenAI function calling

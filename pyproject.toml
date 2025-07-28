@@ -1,7 +1,7 @@
 [project]
-name = "agent"
+name = "deep-research-agent"
 version = "0.1.0"
-description = "An AI agent with Google search capabilities"
+description = "An Deep Research Agent"
 authors = [
     {name = "Roman Engeler", email = "engeler.roman@gmail.com"}
 ]
